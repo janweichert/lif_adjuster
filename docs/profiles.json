@@ -1,0 +1,72 @@
+{
+  "profiles": [
+    {
+      "id": "man",
+      "name": "MAN",
+      "options": {
+        "fix_control_points_order": true,
+        "replace_ids_by_names": false,
+        "write_node_name_to_description": true,
+        "replace_node_names_by_station_names": true,
+        "remove_map_id_prefix": true,
+        "remove_action_param": "stationType",
+        "remove_edge_prop": "maxSpeed, orientationType",
+        "create_rack_offset": false,
+        "remove_whitespace": false,
+        "create_stations_from_park_nodes": false,
+        "park_theta": 1.5707963267948966
+      }
+    },
+    {
+      "id": "knauf",
+      "name": "KNAUF",
+      "options": {
+        "fix_control_points_order": true,
+        "replace_ids_by_names": true,
+        "write_node_name_to_description": false,
+        "replace_node_names_by_station_names": true,
+        "remove_map_id_prefix": true,
+        "remove_action_param": "stationType",
+        "remove_edge_prop": "maxSpeed, orientationType",
+        "create_rack_offset": false,
+        "remove_whitespace": false,
+        "create_stations_from_park_nodes": false,
+        "park_theta": 1.5707963267948966
+      }
+    },
+    {
+      "id": "volvo",
+      "name": "VOLVO",
+      "options": {
+        "fix_control_points_order": true,
+        "replace_ids_by_names": false,
+        "write_node_name_to_description": true,
+        "replace_node_names_by_station_names": true,
+        "remove_map_id_prefix": true,
+        "remove_action_param": "stationType",
+        "remove_edge_prop": "maxSpeed, orientationType",
+        "create_rack_offset": false,
+        "remove_whitespace": false,
+        "create_stations_from_park_nodes": true,
+        "park_theta": 1.5707963267948966
+      }
+    },
+    {
+      "id": "linde_werk2",
+      "name": "LINDE WERK2",
+      "options": {
+        "fix_control_points_order": true,
+        "replace_ids_by_names": true,
+        "write_node_name_to_description": false,
+        "replace_node_names_by_station_names": true,
+        "remove_map_id_prefix": true,
+        "remove_action_param": "stationType",
+        "remove_edge_prop": "maxSpeed, orientationType",
+        "create_rack_offset": false,
+        "remove_whitespace": false,
+        "create_stations_from_park_nodes": false,
+        "park_theta": 1.5707963267948966
+      }
+    }
+  ]
+}

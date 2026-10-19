@@ -27,7 +27,7 @@
       color: var(--text);
       line-height: 1.5;
     }
-    .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+    .wrap { max-width: 680px; margin: 0 auto; padding: 32px 20px 64px; }
     h1 { font-size: 1.6rem; margin: 0 0 4px; }
     .sub { color: var(--muted); margin: 0 0 24px; }
     .card {
@@ -39,14 +39,40 @@
     }
     .card h2 { font-size: 1rem; margin: 0 0 14px; color: var(--accent); letter-spacing: .02em; }
     .file-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .visually-hidden {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    .file-btn {
+      background: var(--accent-strong);
+      color: #04212e;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 600;
+      font-size: .95rem;
+      cursor: pointer;
+    }
+    .file-btn:hover { background: var(--accent); }
+    .file-name { font-weight: 700; color: var(--accent); word-break: break-all; }
     input[type="file"] { color: var(--muted); }
-    .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
-    @media (max-width: 620px) { .opts { grid-template-columns: 1fr; } }
+    .opts-box { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px 12px; margin: 0; background: var(--panel-2); }
+    .opts-box legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0 6px; }
+    .opts { display: grid; grid-template-columns: 1fr; gap: 7px; }
     label.opt { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
     label.opt input { margin-top: 3px; }
-    .field { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
     .field label { font-size: .85rem; color: var(--muted); }
     .field input[type="text"], .field input[type="number"] {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: .9rem;
+    }
+    .field select {
       background: var(--panel-2);
       border: 1px solid var(--border);
       color: var(--text);
@@ -83,6 +109,22 @@
     .log-info { color: var(--text); }
     .log-debug { color: var(--muted); }
     .note { color: var(--muted); font-size: .8rem; margin-top: 8px; }
+    .progress-wrap { margin-top: 14px; }
+    .progress-track {
+      height: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--accent-strong);
+      transition: width .15s ease;
+    }
+    .progress-label { margin-top: 6px; font-size: .8rem; color: var(--muted); }
+    .progress-wrap #log { margin-top: 10px; }
     .version { color: var(--muted); font-size: .9rem; font-weight: 400; margin-left: 8px; }
   </style>
 </head>
@@ -92,40 +134,47 @@
     <p class="sub">Upload a designer LIF JSON, pick the adjustments, and download the result. Everything runs in your browser &mdash; no file is uploaded anywhere.</p>
 
     <div class="card">
-      <h2>1 &middot; Input file</h2>
+      <h2>1 &middot; Input LIF</h2>
       <div class="file-row">
-        <input type="file" id="lif-file" accept=".json,application/json" />
+        <input type="file" id="lif-file" accept=".json,application/json" class="visually-hidden" />
+        <label for="lif-file" class="file-btn">Choose LIF file</label>
+        <span class="file-name" id="file-name">No file selected</span>
       </div>
     </div>
 
     <div class="card">
       <h2>2 &middot; Adjustments</h2>
-      <div class="opts">
+      <div class="field">
+        <label for="profile-select">Select project profile</label>
+        <select id="profile-select">
+          <option value="__custom__">&mdash; Custom &mdash;</option>
+        </select>
+      </div>
+      <fieldset class="opts-box" style="margin-top: 16px;">
+        <legend>Transformations</legend>
+        <div class="opts">
         <label class="opt"><input type="checkbox" id="fix_control_points_order" /> <span>Fix order of trajectory control points</span></label>
-        <label class="opt"><input type="checkbox" id="replace_node_names_by_station_names" /> <span>Rename interaction nodes/edges to station name</span></label>
+        <label class="opt"><input type="checkbox" id="replace_ids_by_names" /> <span>Replace node/edge/station ids with names</span></label>
         <label class="opt"><input type="checkbox" id="write_node_name_to_description" /> <span>Copy node name into node description</span></label>
+        <label class="opt"><input type="checkbox" id="replace_node_names_by_station_names" /> <span>Rename interaction nodes/edges to station name</span></label>
+        <label class="opt"><input type="checkbox" id="remove_map_id_prefix" /> <span>Remove "0.0." prefix from node mapId</span></label>
+        <div class="field">
+          <label for="remove_action_param">Remove action parameter keys (space or comma separated)</label>
+          <input type="text" id="remove_action_param" placeholder="e.g. stationType" />
+        </div>
+        <div class="field">
+          <label for="remove_edge_prop">Remove vehicleTypeEdgeProperties keys (space or comma separated)</label>
+          <input type="text" id="remove_edge_prop" placeholder="e.g. maxSpeed" />
+        </div>
         <label class="opt"><input type="checkbox" id="create_rack_offset" /> <span>Offset stacked rack station nodes</span></label>
         <label class="opt"><input type="checkbox" id="remove_whitespace" /> <span>Remove whitespace from node/edge/station names</span></label>
-        <label class="opt"><input type="checkbox" id="remove_map_id_prefix" /> <span>Remove "0.0." prefix from node mapId</span></label>
         <label class="opt"><input type="checkbox" id="create_stations_from_park_nodes" /> <span>Create stations from "park" nodes</span></label>
-        <label class="opt"><input type="checkbox" id="replace_ids_by_names" /> <span>Replace node/edge/station ids with names</span></label>
-      </div>
-
-      <div class="field">
-        <label for="remove_action_param">Remove action parameter keys (space or comma separated)</label>
-        <input type="text" id="remove_action_param" placeholder="e.g. speed duration" />
-      </div>
-      <div class="field">
-        <label for="remove_edge_prop">Remove vehicleTypeEdgeProperties keys (space or comma separated)</label>
-        <input type="text" id="remove_edge_prop" placeholder="e.g. maxSpeed" />
-      </div>
-      <div class="field">
-        <label for="park_theta">Park station theta (radians)</label>
-        <input type="number" id="park_theta" step="any" value="1.5707963267948966" />
-      </div>
-      <div class="field">
-        <label class="opt"><input type="checkbox" id="verbose" /> <span>Verbose (debug) logging</span></label>
-      </div>
+        <div class="field">
+          <label for="park_theta">Park station theta (radians)</label>
+          <input type="number" id="park_theta" step="any" value="1.5707963267948966" />
+        </div>
+        </div>
+      </fieldset>
     </div>
 
     <div class="card">
@@ -133,13 +182,13 @@
       <div class="actions">
         <button id="process-btn">Adjust &amp; Download</button>
       </div>
-      <p class="note">The adjusted file downloads as <code>&lt;name&gt;.adjusted.json</code>.</p>
+      <div class="progress-wrap" id="progress-wrap" hidden>
+        <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+        <div class="progress-label" id="progress-label"></div>
+        <div id="log"></div>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>Log</h2>
-      <div id="log"></div>
-    </div>
   </div>
 
   <script type="text/python" src="app.py"></script>
