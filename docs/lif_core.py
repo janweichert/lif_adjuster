@@ -7,7 +7,7 @@ file and triggering the download) lives in ``app.py``.
 import logging
 from collections import defaultdict
 
-__version__ = "1.0.1"
+__version__ = "1.0.0"
 
 logger = logging.getLogger("LIFadjuster")
 
