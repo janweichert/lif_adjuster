@@ -225,8 +225,9 @@ def apply_profile(options):
 
 
 def on_profile_change(evt):
+    update_process_enabled()
     pid = document["profile-select"].value
-    if pid == "__custom__":
+    if pid in ("__custom__", "__none__"):
         return
     profile = profiles_by_id.get(pid)
     if not profile:
@@ -234,9 +235,19 @@ def on_profile_change(evt):
     apply_profile(profile.get("options", {}))
 
 
+# The Adjust & Download button and all option controls stay disabled until a
+# real profile is chosen.
+def update_process_enabled():
+    disabled = document["profile-select"].value == "__none__"
+    process_btn.disabled = disabled
+    for oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
+        document[oid].disabled = disabled
+
+
 # A manual edit means the current state no longer matches a named profile.
 def mark_custom(evt):
     document["profile-select"].value = "__custom__"
+    update_process_enabled()
 
 
 def on_profiles_loaded(req):
@@ -255,6 +266,7 @@ def on_profiles_loaded(req):
             continue
         profiles_by_id[pid] = profile
         select <= html.OPTION(profile.get("name", pid), value=pid)
+    select <= html.OPTION("CUSTOM", value="__custom__")
 
 
 def load_profiles():
@@ -266,4 +278,5 @@ for _oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
     document[_oid].bind("change", mark_custom)
 document["lif-file"].bind("change", on_file_change)
 document["process-btn"].bind("click", on_process)
+update_process_enabled()
 load_profiles()

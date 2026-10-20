@@ -80,6 +80,21 @@
       padding: 8px 10px;
       font-size: .9rem;
     }
+    #profile-select {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 40px 8px 10px;
+      font-size: .9rem;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 18px center;
+    }
     .actions { display: flex; gap: 12px; align-items: center; margin-top: 4px; }
     button {
       background: var(--accent-strong);
@@ -92,6 +107,9 @@
       cursor: pointer;
     }
     button:hover { background: var(--accent); }
+    button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+    label.opt:has(input:disabled), .field:has(input:disabled) label { opacity: .5; }
+    .field input:disabled { opacity: .5; cursor: not-allowed; }
     #log {
       background: #0b1120;
       border: 1px solid var(--border);
@@ -121,7 +139,6 @@
       height: 100%;
       width: 0%;
       background: var(--accent-strong);
-      transition: width .15s ease;
     }
     .progress-label { margin-top: 6px; font-size: .8rem; color: var(--muted); }
     .progress-wrap #log { margin-top: 10px; }
@@ -131,7 +148,7 @@
 <body onload="brython()">
   <div class="wrap">
     <h1>StackDesigner LIF Export Adjuster<span class="version" id="app-version"></span></h1>
-    <p class="sub">Upload a designer LIF JSON, pick the adjustments, and download the result. Everything runs in your browser &mdash; no file is uploaded anywhere.</p>
+    <p class="sub">StackDesigner LIF exports need post-processing before third-party systems can use them. This tool applies configurable transformations to a LIF <code>*.json</code> and downloads an <code>*.adjusted.json</code> &mdash; all in your browser, nothing is uploaded.</p>
 
     <div class="card">
       <h2>1 &middot; Input LIF</h2>
@@ -144,12 +161,12 @@
 
     <div class="card">
       <h2>2 &middot; Adjustments</h2>
-      <div class="field">
-        <label for="profile-select">Select project profile</label>
+      <fieldset class="opts-box">
+        <legend>Project profile</legend>
         <select id="profile-select">
-          <option value="__custom__">&mdash; Custom &mdash;</option>
+          <option value="__none__" selected>&mdash; Select project profile &mdash;</option>
         </select>
-      </div>
+      </fieldset>
       <fieldset class="opts-box" style="margin-top: 16px;">
         <legend>Transformations</legend>
         <div class="opts">
@@ -163,7 +180,7 @@
           <input type="text" id="remove_action_param" placeholder="e.g. stationType" />
         </div>
         <div class="field">
-          <label for="remove_edge_prop">Remove vehicleTypeEdgeProperties keys (space or comma separated)</label>
+          <label for="remove_edge_prop">Remove edge property keys (space or comma separated)</label>
           <input type="text" id="remove_edge_prop" placeholder="e.g. maxSpeed" />
         </div>
         <label class="opt"><input type="checkbox" id="create_rack_offset" /> <span>Offset stacked rack station nodes</span></label>
