@@ -7,7 +7,7 @@ file and triggering the download) lives in ``app.py``.
 import logging
 from collections import defaultdict
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 logger = logging.getLogger("LIFadjuster")
 
@@ -383,7 +383,9 @@ def count_enabled_steps(options):
         count += 1
     if options.create_stations_from_park_nodes:
         count += 1
-    if options.replace_ids_by_names:
+    if options.replace_node_edge_ids_by_names:
+        count += 1
+    if options.replace_station_ids_by_names:
         count += 1
     return count
 
@@ -462,14 +464,13 @@ def iter_transformations(output_data, options):
         count = createStationsFromParkNodes(output_data, theta=options.park_theta)
         logger.info("Created %d %s from park nodes in stations[]", count, plural(count, "station"))
     # Id-to-name replacement runs last so earlier id-based lookups still resolve.
-    if options.replace_ids_by_names:
+    if options.replace_node_edge_ids_by_names:
         yield "Replacing ids with names"
         node_id_to_name = buildNodeIdToNameMap(output_data)
         edge_count = replaceEdgeNodeIdsByNodeNames(output_data, node_id_to_name)
         interaction_count = replaceInteractionNodeIdsByNodeNames(output_data, node_id_to_name)
         node_count = replaceNodeIdsByNodeNames(output_data, node_id_to_name)
         edge_id_count = replaceEdgeIdsByEdgeNames(output_data)
-        station_count = replaceStationIdsByNames(output_data)
         logger.info("Replaced node ids by names on %d/%d %s in nodes[].nodeId",
                     node_count, total_nodes, plural(node_count, "node"))
         logger.info("Replaced edge start/end node ids by names on %d/%d %s "
@@ -477,11 +478,14 @@ def iter_transformations(output_data, options):
                     edge_count, total_edges, plural(edge_count, "edge"))
         logger.info("Replaced edge ids by names on %d/%d %s in edges[].edgeId",
                     edge_id_count, total_edges, plural(edge_id_count, "edge"))
-        logger.info("Replaced station ids by names on %d/%d %s in stations[].stationId",
-                    station_count, total_stations, plural(station_count, "station"))
         logger.info("Replaced station interaction ids by names on %d/%d %s "
                     "in stations[].interactionNodeIds[]",
                     interaction_count, total_stations, plural(interaction_count, "station"))
+    if options.replace_station_ids_by_names:
+        yield "Replacing station ids with names"
+        station_count = replaceStationIdsByNames(output_data)
+        logger.info("Replaced station ids by names on %d/%d %s in stations[].stationId",
+                    station_count, total_stations, plural(station_count, "station"))
 
 
 # Synchronous wrapper: run all enabled transformations. Returns False if the

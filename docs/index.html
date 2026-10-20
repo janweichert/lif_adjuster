@@ -95,6 +95,7 @@
       background-repeat: no-repeat;
       background-position: right 18px center;
     }
+    #profile-select:disabled { opacity: .5; cursor: not-allowed; }
     .actions { display: flex; gap: 12px; align-items: center; margin-top: 4px; }
     button {
       background: var(--accent-strong);
@@ -171,7 +172,8 @@
         <legend>Transformations</legend>
         <div class="opts">
         <label class="opt"><input type="checkbox" id="fix_control_points_order" /> <span>Fix order of trajectory control points</span></label>
-        <label class="opt"><input type="checkbox" id="replace_ids_by_names" /> <span>Replace node/edge/station ids with names</span></label>
+        <label class="opt"><input type="checkbox" id="replace_node_edge_ids_by_names" /> <span>Replace node/edge ids with names</span></label>
+        <label class="opt"><input type="checkbox" id="replace_station_ids_by_names" /> <span>Replace station ids with names</span></label>
         <label class="opt"><input type="checkbox" id="write_node_name_to_description" /> <span>Copy node name into node description</span></label>
         <label class="opt"><input type="checkbox" id="replace_node_names_by_station_names" /> <span>Rename interaction nodes/edges to station name</span></label>
         <label class="opt"><input type="checkbox" id="remove_map_id_prefix" /> <span>Remove "0.0." prefix from node mapId</span></label>

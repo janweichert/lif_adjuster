@@ -52,7 +52,8 @@ def build_options():
     opts.remove_whitespace = document["remove_whitespace"].checked
     opts.remove_map_id_prefix = document["remove_map_id_prefix"].checked
     opts.create_stations_from_park_nodes = document["create_stations_from_park_nodes"].checked
-    opts.replace_ids_by_names = document["replace_ids_by_names"].checked
+    opts.replace_node_edge_ids_by_names = document["replace_node_edge_ids_by_names"].checked
+    opts.replace_station_ids_by_names = document["replace_station_ids_by_names"].checked
     opts.remove_action_param = parse_keys(document["remove_action_param"].value)
     opts.remove_edge_prop = parse_keys(document["remove_edge_prop"].value)
 
@@ -183,6 +184,7 @@ def on_process(evt):
 def on_file_change(evt):
     files = document["lif-file"].files
     document["file-name"].text = files[0].name if files.length else "No file selected"
+    document["profile-select"].disabled = not files.length
 
 
 # Option element ids, grouped by control type. Profile keys use these same ids.
@@ -194,7 +196,8 @@ BOOL_OPTION_IDS = [
     "remove_whitespace",
     "remove_map_id_prefix",
     "create_stations_from_park_nodes",
-    "replace_ids_by_names",
+    "replace_node_edge_ids_by_names",
+    "replace_station_ids_by_names",
 ]
 TEXT_OPTION_IDS = ["remove_action_param", "remove_edge_prop"]
 DEFAULT_PARK_THETA = "1.5707963267948966"
@@ -278,5 +281,6 @@ for _oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
     document[_oid].bind("change", mark_custom)
 document["lif-file"].bind("change", on_file_change)
 document["process-btn"].bind("click", on_process)
+document["profile-select"].disabled = True
 update_process_enabled()
 load_profiles()
