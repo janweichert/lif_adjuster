@@ -139,6 +139,12 @@ def run(text, source_name):
 
         yield "Serializing & downloading"
         out_text = json.dumps(state["data"], separators=(",", ":"), ensure_ascii=False)
+        # Defensive: some Brython builds escape >, < and & (e.g. "=>" -> "=\u003e").
+        # IDs/names never contain literal backslashes, so this is safe to undo.
+        out_text = (out_text
+                    .replace("\\u003e", ">").replace("\\u003E", ">")
+                    .replace("\\u003c", "<").replace("\\u003C", "<")
+                    .replace("\\u0026", "&"))
         out_name = source_name.split(".")[0] + ".adjusted.json"
         trigger_download(out_text, out_name)
         logger.info("Done. Downloaded: %s", out_name)
