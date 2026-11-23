@@ -14,10 +14,16 @@ import lif_core
 log_area = document["log"]
 
 
+# Fixed-width level tag, e.g. "[INFO ]" or "[WARN ]".
+def level_tag(level):
+    name = "WARN" if level.lower() == "warning" else level.upper()
+    return "[{}]".format(name.ljust(5))
+
+
 # Route the shared core's logging output into the on-page log panel.
 class DomLogHandler(logging.Handler):
     def emit(self, record):
-        line = html.DIV(self.format(record))
+        line = html.DIV("{} {}".format(level_tag(record.levelname), self.format(record)))
         line.classList.add("log-" + record.levelname.lower())
         log_area <= line
 
@@ -131,6 +137,13 @@ def run(text, source_name):
             state["aborted"] = True
             return
 
+        problems = lif_core.validate_lif(state["data"])
+        if problems:
+            for problem in problems:
+                logger.error("Invalid LIF: %s", problem)
+            state["aborted"] = True
+            return
+
         for item in lif_core.iter_transformations(state["data"], options):
             if item is lif_core.ABORT:
                 state["aborted"] = True
@@ -181,10 +194,90 @@ def on_process(evt):
     reader.readAsText(file)
 
 
+import_log = document["import-log"]
+
+
+def import_log_line(level, message):
+    line = html.DIV("{} {}".format(level_tag(level), message))
+    line.classList.add("log-" + level)
+    import_log <= line
+
+
+# Parse and validate the chosen file, reporting the outcome in the import log.
+# Returns True if the file can be adjusted (no errors).
+def report_import(text, filename):
+    try:
+        data = json.loads(text)
+    except Exception as exc:
+        import_log_line("error", "Could not parse JSON: {}".format(exc))
+        return False
+    problems = lif_core.validate_lif(data)
+    if problems:
+        for problem in problems:
+            import_log_line("error", "Invalid LIF: " + problem)
+        return False
+    layout = data["layouts"][0]
+    import_log_line("info", "Successfully imported " + filename)
+    import_log_line("info", "layoutVersion: {}".format(layout.get("layoutVersion")))
+    vehicle_type_ids = sorted(lif_core.collect_vehicle_type_ids(layout))
+    import_log_line("info", "vehicleTypeIds: {}".format(", ".join(vehicle_type_ids) or "-"))
+    import_log_line("info", "nodes: {}, edges: {}, stations: {}".format(
+        len(layout["nodes"]), len(layout["edges"]), len(layout["stations"])))
+
+    max_listed = 5
+    for type_id, kinds in sorted(lif_core.vehicle_type_usage(layout).items()):
+        node_total, node_have, node_missing = kinds["node"]
+        edge_total, edge_have, edge_missing = kinds["edge"]
+        station_total, station_have, station_missing = kinds["station"]
+        import_log_line("info", "vehicleType {}: nodes {}/{}, edges {}/{}, stations {}/{}".format(
+            type_id, node_have, node_total, edge_have, edge_total, station_have, station_total))
+        for kind, missing in ("nodes", node_missing), ("edges", edge_missing), ("stations", station_missing):
+            if missing:
+                listed = ", ".join(missing[:max_listed])
+                extra = " (+{} more)".format(len(missing) - max_listed) if len(missing) > max_listed else ""
+                import_log_line("warning", "vehicleType {} missing on {} {}: {}{}".format(
+                    type_id, len(missing), kind, listed, extra))
+
+    unmapped = lif_core.find_unmapped_stations(layout)
+    if unmapped:
+        listed = ", ".join(unmapped[:max_listed])
+        extra = " (+{} more)".format(len(unmapped) - max_listed) if len(unmapped) > max_listed else ""
+        import_log_line("warning", "{} stations not mapped to existing nodes: {}{}".format(
+            len(unmapped), listed, extra))
+
+    empty_props = lif_core.find_empty_vehicle_type_properties(data)
+    for message in empty_props:
+        import_log_line("error", message)
+    if empty_props:
+        import_log_line("error", "Define the vehicle types for these nodes/edges in the Designer and re-export the LIF.")
+    else:
+        import_log_line("info", "All edges and nodes have vehicleType properties mapped.")
+    return not empty_props
+
+
 def on_file_change(evt):
     files = document["lif-file"].files
     document["file-name"].text = files[0].name if files.length else "No file selected"
-    document["profile-select"].disabled = not files.length
+
+    # Profile stays locked until the new file has been imported without errors.
+    select = document["profile-select"]
+    select.disabled = True
+    select.value = "__none__"
+    update_process_enabled()
+
+    import_log.clear()
+    if not files.length:
+        import_log.setAttribute("hidden", "")
+        return
+    import_log.removeAttribute("hidden")
+    file = files[0]
+    reader = window.FileReader.new()
+
+    def on_loaded(e):
+        select.disabled = not report_import(reader.result, file.name)
+
+    reader.onload = on_loaded
+    reader.readAsText(file)
 
 
 # Option element ids, grouped by control type. Profile keys use these same ids.
@@ -238,19 +331,14 @@ def on_profile_change(evt):
     apply_profile(profile.get("options", {}))
 
 
-# The Adjust & Download button and all option controls stay disabled until a
-# real profile is chosen.
+# The Adjust & Download button stays disabled until a real profile is chosen;
+# option controls are editable only in CUSTOM.
 def update_process_enabled():
-    disabled = document["profile-select"].value == "__none__"
-    process_btn.disabled = disabled
+    profile = document["profile-select"].value
+    process_btn.disabled = profile == "__none__"
+    locked = profile != "__custom__"
     for oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
-        document[oid].disabled = disabled
-
-
-# A manual edit means the current state no longer matches a named profile.
-def mark_custom(evt):
-    document["profile-select"].value = "__custom__"
-    update_process_enabled()
+        document[oid].disabled = locked
 
 
 def on_profiles_loaded(req):
@@ -276,9 +364,33 @@ def load_profiles():
     ajax.get("profiles.json", oncomplete=on_profiles_loaded)
 
 
+changelog_dialog = document["changelog-dialog"]
+changelog_body = document["changelog-body"]
+
+
+def on_changelog_loaded(req):
+    changelog_body.clear()
+    try:
+        entries = json.loads(req.text)["entries"]
+    except Exception:
+        changelog_body.text = "Could not load the changelog."
+        return
+    for entry in entries:
+        changelog_body <= html.H3(entry.get("version", ""))
+        items = html.UL()
+        for text in entry.get("items", []):
+            items <= html.LI(text)
+        changelog_body <= items
+
+
+def on_changelog_open(evt):
+    ajax.get("changelog.json", oncomplete=on_changelog_loaded)
+    changelog_dialog.showModal()
+
+
 document["profile-select"].bind("change", on_profile_change)
-for _oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
-    document[_oid].bind("change", mark_custom)
+document["changelog-btn"].bind("click", on_changelog_open)
+document["changelog-close"].bind("click", lambda evt: changelog_dialog.close())
 document["lif-file"].bind("change", on_file_change)
 document["process-btn"].bind("click", on_process)
 document["profile-select"].disabled = True

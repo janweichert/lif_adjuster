@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "version": "1.4.0",
+      "items": [
+        "Files are validated on import: layouts[0] must contain nodes, edges and stations arrays, otherwise the adjustment is aborted.",
+        "Import reports nodes/edges without vehicleType properties, which would abort the adjustment.",
+        "Import checks, per vehicle type, how many nodes, edges and stations (via their interaction nodes) use it and warns about gaps.",
+        "Import warns about stations that are not mapped to existing nodes.",
+        "Profiles can only be selected after a file was imported without errors.",
+        "Transformation options can only be changed with the CUSTOM profile; all other profiles are locked."
+      ]
+    }
+  ]
+}

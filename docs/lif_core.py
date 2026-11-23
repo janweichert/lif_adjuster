@@ -7,9 +7,81 @@ file and triggering the download) lives in ``app.py``.
 import logging
 from collections import defaultdict
 
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 logger = logging.getLogger("LIFadjuster")
+
+
+# Return a list of structural problems in the LIF (empty if valid).
+def validate_lif(lif):
+    if not isinstance(lif, dict):
+        return ["LIF root must be a JSON object."]
+    layouts = lif.get("layouts")
+    if not isinstance(layouts, list) or not layouts:
+        return ["LIF must contain a non-empty 'layouts' array."]
+    layout = layouts[0]
+    if not isinstance(layout, dict):
+        return ["'layouts[0]' must be an object."]
+    return [
+        "'layouts[0]' must contain a '{}' array.".format(key)
+        for key in ("nodes", "edges", "stations")
+        if not isinstance(layout.get(key), list)
+    ]
+
+
+# Return the set of vehicleTypeIds used by the layout's nodes and edges.
+def collect_vehicle_type_ids(layout):
+    ids = set()
+    for items, key in ((layout["nodes"], "vehicleTypeNodeProperties"),
+                       (layout["edges"], "vehicleTypeEdgeProperties")):
+        for item in items:
+            for prop in item.get(key) or []:
+                if "vehicleTypeId" in prop:
+                    ids.add(str(prop["vehicleTypeId"]))
+    return ids
+
+
+# Return {vehicleTypeId: {"node"|"edge"|"station": (total, have, missing_names)}}.
+# total counts every item; missing_names lists those that lack the type.
+# Nodes/edges with empty properties and unmapped stations are not listed:
+# find_empty_vehicle_type_properties / find_unmapped_stations report them.
+# A station has a type when all its interaction nodes define it.
+def vehicle_type_usage(layout):
+    usage = {type_id: {} for type_id in collect_vehicle_type_ids(layout)}
+    for kind, items, props_key, name_key in (
+            ("node", layout["nodes"], "vehicleTypeNodeProperties", "nodeName"),
+            ("edge", layout["edges"], "vehicleTypeEdgeProperties", "edgeName")):
+        with_props = [item for item in items if item.get(props_key)]
+        present = [{str(p["vehicleTypeId"]) for p in item[props_key] if "vehicleTypeId" in p}
+                   for item in with_props]
+        for type_id in usage:
+            missing = [str(item.get(name_key)) for item, ids in zip(with_props, present) if type_id not in ids]
+            usage[type_id][kind] = (len(items), len(with_props) - len(missing), missing)
+
+    node_types = {
+        node.get("nodeId"): {str(p["vehicleTypeId"]) for p in node.get("vehicleTypeNodeProperties") or []
+                             if "vehicleTypeId" in p}
+        for node in layout["nodes"]
+    }
+    stations = layout["stations"]
+    mapped = [s for s in stations
+              if s.get("interactionNodeIds") and all(i in node_types for i in s["interactionNodeIds"])]
+    for type_id in usage:
+        missing = [str(s.get("stationName") or s.get("stationId")) for s in mapped
+                   if any(type_id not in node_types[i] for i in s["interactionNodeIds"])]
+        usage[type_id]["station"] = (len(stations), len(mapped) - len(missing), missing)
+    return usage
+
+
+# Return the names of stations with no interaction nodes or any that don't exist in nodes[].
+def find_unmapped_stations(layout):
+    node_ids = {node.get("nodeId") for node in layout["nodes"]}
+    return [
+        str(station.get("stationName") or station.get("stationId"))
+        for station in layout["stations"]
+        if not station.get("interactionNodeIds")
+        or any(node_id not in node_ids for node_id in station["interactionNodeIds"])
+    ]
 
 
 # Return the word in singular or plural form based on count.
@@ -334,22 +406,25 @@ def getNodeById(lif, nodeId):
     logger.warning("Node not found: %s", nodeId)
 
 
-# Report any edges or nodes missing vehicleType properties.
-def checkEmptyVehicleTypeProperties(lif):
-    all_mapped = True
-
+# Return a message for each edge/node missing vehicleType properties.
+def find_empty_vehicle_type_properties(lif):
+    messages = []
     for edge in lif["layouts"][0]["edges"]:
         if not edge.get("vehicleTypeEdgeProperties"):
-            all_mapped = False
-            logger.warning("Empty vehicleTypeEdgeProperties: edgeId=%s edgeName=%s",
-                           edge.get('edgeId'), edge.get('edgeName'))
-
+            messages.append("Empty vehicleTypeEdgeProperties: {}".format(edge.get("edgeName")))
     for node in lif["layouts"][0]["nodes"]:
         if not node.get("vehicleTypeNodeProperties"):
-            all_mapped = False
-            logger.warning("Empty vehicleTypeNodeProperties: nodeId=%s nodeName=%s",
-                           node.get('nodeId'), node.get('nodeName'))
+            messages.append("Empty vehicleTypeNodeProperties: {}".format(node.get("nodeName")))
+    return messages
 
+
+# Report any edges or nodes missing vehicleType properties.
+def checkEmptyVehicleTypeProperties(lif):
+    messages = find_empty_vehicle_type_properties(lif)
+    for message in messages:
+        logger.warning("%s", message)
+
+    all_mapped = not messages
     if all_mapped:
         logger.info("All edges and nodes have vehicleType properties mapped.")
     return all_mapped
@@ -405,8 +480,6 @@ def iter_transformations(output_data, options):
     total_edges = len(layout.get("edges", []))
     total_stations = len(layout.get("stations", []))
     total_names = total_nodes + total_edges + total_stations
-
-    logger.info("Input: %d nodes, %d edges, %d stations", total_nodes, total_edges, total_stations)
 
     if options.fix_control_points_order:
         yield "Fixing order of trajectory control points"

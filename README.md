@@ -44,6 +44,7 @@ Then open <http://localhost:8777/>.
 | `docs/index.html` | Web UI. |
 | `docs/app.py` | Brython glue: upload → process → download, logs to the page. |
 | `docs/lif_core.py` | Pure transformation pipeline and version (single source of truth). |
+| `docs/changelog.json` | Entries shown by the Changelog button; add new entries at the top. |
 | `run_webpage.bat` | Serve `docs/` locally and open the browser. |
 | `.github/workflows/deploy-pages.yml` | Deploy `docs/` to GitHub Pages on each `v*` tag. |
 

@@ -109,9 +109,33 @@
     }
     button:hover { background: var(--accent); }
     button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
-    label.opt:has(input:disabled), .field:has(input:disabled) label { opacity: .5; }
-    .field input:disabled { opacity: .5; cursor: not-allowed; }
-    #log {
+    label.opt input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      flex: none;
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid var(--muted);
+      border-radius: 4px;
+      background: var(--panel-2) center / 12px no-repeat;
+    }
+    label.opt input[type="checkbox"]:checked {
+      background-color: var(--accent-strong);
+      border-color: var(--accent-strong);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2304212e' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 12 10 18 20 6'/%3E%3C/svg%3E");
+    }
+    label.opt:has(input:disabled) { cursor: not-allowed; color: var(--muted); }
+    label.opt input[type="checkbox"]:disabled {
+      border-style: dashed;
+      border-color: #64748b;
+      cursor: not-allowed;
+    }
+    label.opt input[type="checkbox"]:disabled:checked {
+      background-color: #64748b;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='4 12 10 18 20 6'/%3E%3C/svg%3E");
+    }
+    .field input:disabled { color: var(--muted); background: transparent; border-style: dashed; cursor: not-allowed; }
+    #log, #import-log {
       background: #0b1120;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -122,7 +146,8 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: .82rem;
     }
-    #log div { white-space: pre-wrap; }
+    #log div, #import-log div { white-space: pre-wrap; }
+    #import-log { min-height: 0; max-height: 300px; margin-top: 14px; }
     .log-error { color: var(--error); }
     .log-warning { color: var(--warn); }
     .log-info { color: var(--text); }
@@ -144,11 +169,32 @@
     .progress-label { margin-top: 6px; font-size: .8rem; color: var(--muted); }
     .progress-wrap #log { margin-top: 10px; }
     .version { color: var(--muted); font-size: .9rem; font-weight: 400; margin-left: 8px; }
+    .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); padding: 6px 14px; font-size: .85rem; }
+    button.secondary:hover { background: var(--panel-2); }
+    #changelog-dialog {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      width: min(640px, calc(100% - 40px));
+    }
+    #changelog-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    .dlg-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .dlg-head h2 { margin: 0; font-size: 1.1rem; color: var(--accent); }
+    #changelog-body { max-height: 60vh; overflow: auto; }
+    #changelog-body h3 { font-size: .95rem; margin: 14px 0 4px; }
+    #changelog-body ul { margin: 0; padding-left: 20px; }
+    #changelog-body li { margin-bottom: 4px; }
   </style>
 </head>
 <body onload="brython()">
   <div class="wrap">
-    <h1>StackDesigner LIF Export Adjuster<span class="version" id="app-version"></span></h1>
+    <div class="title-row">
+      <h1>StackDesigner LIF Export Adjuster<span class="version" id="app-version"></span></h1>
+      <button id="changelog-btn" class="secondary">Changelog</button>
+    </div>
     <p class="sub">StackDesigner LIF exports need post-processing before third-party systems can use them. This tool applies configurable transformations to a LIF <code>*.json</code> and downloads an <code>*.adjusted.json</code> &mdash; all in your browser, nothing is uploaded.</p>
 
     <div class="card">
@@ -158,6 +204,7 @@
         <label for="lif-file" class="file-btn">Choose LIF file</label>
         <span class="file-name" id="file-name">No file selected</span>
       </div>
+      <div id="import-log" hidden></div>
     </div>
 
     <div class="card">
@@ -209,6 +256,14 @@
     </div>
 
   </div>
+
+  <dialog id="changelog-dialog">
+    <div class="dlg-head">
+      <h2>Changelog</h2>
+      <button id="changelog-close" class="secondary">Close</button>
+    </div>
+    <div id="changelog-body">Loading&hellip;</div>
+  </dialog>
 
   <script type="text/python" src="app.py"></script>
 </body>
