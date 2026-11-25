@@ -7,7 +7,7 @@ file and triggering the download) lives in ``app.py``.
 import logging
 from collections import defaultdict
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 logger = logging.getLogger("LIFadjuster")
 
@@ -331,10 +331,12 @@ def replaceInteractionNodeIdsByNodeNames(lif, node_id_to_name):
     return len(stations)
 
 
-# Replace each edgeId with its edgeName.
+# Replace "=>" with "-" in each edgeName, then replace each edgeId with its edgeName.
 def replaceEdgeIdsByEdgeNames(lif):
     edges = lif["layouts"][0]["edges"]
     for edge in edges:
+        if "edgeName" in edge:
+            edge["edgeName"] = edge["edgeName"].replace("=>", "-")
         edge["edgeId"] = edge.get("edgeName", edge["edgeId"])
     return len(edges)
 
@@ -549,7 +551,7 @@ def iter_transformations(output_data, options):
         logger.info("Replaced edge start/end node ids by names on %d/%d %s "
                     "in edges[].startNodeId, edges[].endNodeId",
                     edge_count, total_edges, plural(edge_count, "edge"))
-        logger.info("Replaced edge ids by names on %d/%d %s in edges[].edgeId",
+        logger.info("Replaced '=>' by '-' in edges[].edgeName and edge ids by names on %d/%d %s in edges[].edgeId",
                     edge_id_count, total_edges, plural(edge_id_count, "edge"))
         logger.info("Replaced station interaction ids by names on %d/%d %s "
                     "in stations[].interactionNodeIds[]",

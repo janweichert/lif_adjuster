@@ -1,6 +1,12 @@
 {
   "entries": [
     {
+      "version": "1.4.1",
+      "items": [
+        "Replacing edge ids now first changes \"=>\" to \"-\" in edgeName."
+      ]
+    },
+    {
       "version": "1.4.0",
       "items": [
         "Files are validated on import: layouts[0] must contain nodes, edges and stations arrays, otherwise the adjustment is aborted.",
