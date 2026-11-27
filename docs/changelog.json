@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "version": "1.5.0",
+      "items": [
+        "Convert mapIds and layoutVersion to whole-number strings (1.83.639312993269549977 → 183); warn on current 0.0 layouts; override node mapIds in CUSTOM.",
+        "Show per-vehicle coverage without partial-use warnings; block nodes or edges with no vehicleType properties.",
+        "Preserve periods in adjusted filenames; group related controls."
+      ]
+    },
+    {
       "version": "1.4.1",
       "items": [
         "Replacing edge ids now first changes \"=>\" to \"-\" in edgeName."

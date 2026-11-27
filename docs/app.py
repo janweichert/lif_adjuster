@@ -16,7 +16,7 @@ log_area = document["log"]
 
 # Fixed-width level tag, e.g. "[INFO ]" or "[WARN ]".
 def level_tag(level):
-    name = "WARN" if level.lower() == "warning" else level.upper()
+    name = {"warning": "WARN", "important": "ALERT"}.get(level.lower(), level.upper())
     return "[{}]".format(name.ljust(5))
 
 
@@ -56,7 +56,8 @@ def build_options():
     opts.write_node_name_to_description = document["write_node_name_to_description"].checked
     opts.create_rack_offset = document["create_rack_offset"].checked
     opts.remove_whitespace = document["remove_whitespace"].checked
-    opts.remove_map_id_prefix = document["remove_map_id_prefix"].checked
+    opts.shorten_map_id = document["shorten_map_id"].checked
+    opts.map_id_value = document["map_id_value"].value.strip()
     opts.create_stations_from_park_nodes = document["create_stations_from_park_nodes"].checked
     opts.replace_node_edge_ids_by_names = document["replace_node_edge_ids_by_names"].checked
     opts.replace_station_ids_by_names = document["replace_station_ids_by_names"].checked
@@ -152,7 +153,7 @@ def run(text, source_name):
 
         yield "Serializing & downloading"
         out_text = json.dumps(state["data"], separators=(",", ":"), ensure_ascii=False)
-        out_name = source_name.split(".")[0] + ".adjusted.json"
+        out_name = source_name.rsplit(".", 1)[0] + ".adjusted.json"
         trigger_download(out_text, out_name)
         logger.info("Done. Downloaded: %s", out_name)
 
@@ -217,8 +218,19 @@ def report_import(text, filename):
             import_log_line("error", "Invalid LIF: " + problem)
         return False
     layout = data["layouts"][0]
+    shortened_map_ids = {
+        lif_core.shortenMapId(node["mapId"])
+        for node in layout["nodes"]
+        if isinstance(node.get("mapId"), str)
+    }
+    document["map_id_value"].value = (
+        next(iter(shortened_map_ids)) if len(shortened_map_ids) == 1 else ""
+    )
     import_log_line("info", "Successfully imported " + filename)
-    import_log_line("info", "layoutVersion: {}".format(layout.get("layoutVersion")))
+    layout_version = layout.get("layoutVersion")
+    import_log_line("info", "layoutVersion: {}".format(layout_version))
+    if isinstance(layout_version, str) and layout_version.startswith("0.0."):
+        import_log_line("important", "Unversioned LIF: conversion sets mapId/layoutVersion to '00'. Download a versioned LIF from StackDesigner for a non-00 mapId; distribute only versioned LIFs to customers or 3rd-party fleet managers.")
     vehicle_type_ids = sorted(lif_core.collect_vehicle_type_ids(layout))
     import_log_line("info", "vehicleTypeIds: {}".format(", ".join(vehicle_type_ids) or "-"))
     import_log_line("info", "nodes: {}, edges: {}, stations: {}".format(
@@ -226,17 +238,11 @@ def report_import(text, filename):
 
     max_listed = 5
     for type_id, kinds in sorted(lif_core.vehicle_type_usage(layout).items()):
-        node_total, node_have, node_missing = kinds["node"]
-        edge_total, edge_have, edge_missing = kinds["edge"]
-        station_total, station_have, station_missing = kinds["station"]
+        node_total, node_have, _ = kinds["node"]
+        edge_total, edge_have, _ = kinds["edge"]
+        station_total, station_have, _ = kinds["station"]
         import_log_line("info", "vehicleType {}: nodes {}/{}, edges {}/{}, stations {}/{}".format(
             type_id, node_have, node_total, edge_have, edge_total, station_have, station_total))
-        for kind, missing in ("nodes", node_missing), ("edges", edge_missing), ("stations", station_missing):
-            if missing:
-                listed = ", ".join(missing[:max_listed])
-                extra = " (+{} more)".format(len(missing) - max_listed) if len(missing) > max_listed else ""
-                import_log_line("warning", "vehicleType {} missing on {} {}: {}{}".format(
-                    type_id, len(missing), kind, listed, extra))
 
     unmapped = lif_core.find_unmapped_stations(layout)
     if unmapped:
@@ -251,13 +257,14 @@ def report_import(text, filename):
     if empty_props:
         import_log_line("error", "Define the vehicle types for these nodes/edges in the Designer and re-export the LIF.")
     else:
-        import_log_line("info", "All edges and nodes have vehicleType properties mapped.")
+        import_log_line("info", "Every node and edge has at least one vehicleType property.")
     return not empty_props
 
 
 def on_file_change(evt):
     files = document["lif-file"].files
     document["file-name"].text = files[0].name if files.length else "No file selected"
+    document["map_id_value"].value = ""
 
     # Profile stays locked until the new file has been imported without errors.
     select = document["profile-select"]
@@ -287,7 +294,7 @@ BOOL_OPTION_IDS = [
     "write_node_name_to_description",
     "create_rack_offset",
     "remove_whitespace",
-    "remove_map_id_prefix",
+    "shorten_map_id",
     "create_stations_from_park_nodes",
     "replace_node_edge_ids_by_names",
     "replace_station_ids_by_names",
@@ -337,7 +344,7 @@ def update_process_enabled():
     profile = document["profile-select"].value
     process_btn.disabled = profile == "__none__"
     locked = profile != "__custom__"
-    for oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta"]:
+    for oid in BOOL_OPTION_IDS + TEXT_OPTION_IDS + ["park_theta", "map_id_value"]:
         document[oid].disabled = locked
 
 

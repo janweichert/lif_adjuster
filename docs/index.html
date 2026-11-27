@@ -59,6 +59,9 @@
     input[type="file"] { color: var(--muted); }
     .opts-box { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px 12px; margin: 0; background: var(--panel-2); }
     .opts-box legend { font-size: .85rem; font-weight: 700; color: var(--muted); padding: 0 6px; }
+    .transform-group-box { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px 12px; margin: 4px -6px 0; min-width: 0; background: var(--panel-2); }
+    .transform-group-box > label.opt { margin-left: -7px; }
+    .transform-group-box .grouped-field { margin-top: 10px; padding-left: 17px; }
     .opts { display: grid; grid-template-columns: 1fr; gap: 7px; }
     label.opt { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
     label.opt input { margin-top: 3px; }
@@ -150,6 +153,7 @@
     #import-log { min-height: 0; max-height: 300px; margin-top: 14px; }
     .log-error { color: var(--error); }
     .log-warning { color: var(--warn); }
+    .log-important { color: var(--warn); font-weight: 700; }
     .log-info { color: var(--text); }
     .log-debug { color: var(--muted); }
     .note { color: var(--muted); font-size: .8rem; margin-top: 8px; }
@@ -223,7 +227,13 @@
         <label class="opt"><input type="checkbox" id="replace_station_ids_by_names" /> <span>Replace station ids with names</span></label>
         <label class="opt"><input type="checkbox" id="write_node_name_to_description" /> <span>Copy node name into node description</span></label>
         <label class="opt"><input type="checkbox" id="replace_node_names_by_station_names" /> <span>Rename interaction nodes/edges to station name</span></label>
-        <label class="opt"><input type="checkbox" id="remove_map_id_prefix" /> <span>Remove "0.0." prefix from node mapId</span></label>
+        <fieldset class="transform-group-box">
+          <label class="opt"><input type="checkbox" id="shorten_map_id" /> <span>Convert mapId and layoutVersion to whole-number format</span></label>
+          <div class="field grouped-field">
+            <label for="map_id_value">Set mapId for all nodes (integer)</label>
+            <input type="text" id="map_id_value" placeholder="e.g. 183" />
+          </div>
+        </fieldset>
         <div class="field">
           <label for="remove_action_param">Remove action parameter keys (space or comma separated)</label>
           <input type="text" id="remove_action_param" placeholder="e.g. stationType" />
@@ -234,11 +244,13 @@
         </div>
         <label class="opt"><input type="checkbox" id="create_rack_offset" /> <span>Offset stacked rack station nodes</span></label>
         <label class="opt"><input type="checkbox" id="remove_whitespace" /> <span>Remove whitespace from node/edge/station names</span></label>
-        <label class="opt"><input type="checkbox" id="create_stations_from_park_nodes" /> <span>Create stations from "park" nodes</span></label>
-        <div class="field">
-          <label for="park_theta">Park station theta (radians)</label>
-          <input type="number" id="park_theta" step="any" value="1.5707963267948966" />
-        </div>
+        <fieldset class="transform-group-box">
+          <label class="opt"><input type="checkbox" id="create_stations_from_park_nodes" /> <span>Create stations from "park" nodes</span></label>
+          <div class="field grouped-field">
+            <label for="park_theta">Park station theta (radians)</label>
+            <input type="number" id="park_theta" step="any" value="1.5707963267948966" />
+          </div>
+        </fieldset>
         </div>
       </fieldset>
     </div>

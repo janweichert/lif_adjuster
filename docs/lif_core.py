@@ -7,7 +7,7 @@ file and triggering the download) lives in ``app.py``.
 import logging
 from collections import defaultdict
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"
 
 logger = logging.getLogger("LIFadjuster")
 
@@ -15,15 +15,15 @@ logger = logging.getLogger("LIFadjuster")
 # Return a list of structural problems in the LIF (empty if valid).
 def validate_lif(lif):
     if not isinstance(lif, dict):
-        return ["LIF root must be a JSON object."]
+        return ["LIF root must be a JSON object with a non-empty 'layouts' array; layouts[0] must contain 'nodes', 'edges', and 'stations' arrays."]
     layouts = lif.get("layouts")
     if not isinstance(layouts, list) or not layouts:
-        return ["LIF must contain a non-empty 'layouts' array."]
+        return ["LIF must contain a non-empty 'layouts' array with 'nodes', 'edges', and 'stations' arrays in layouts[0]."]
     layout = layouts[0]
     if not isinstance(layout, dict):
-        return ["'layouts[0]' must be an object."]
+        return ["'layouts[0]' must be an object containing 'nodes', 'edges', and 'stations' arrays."]
     return [
-        "'layouts[0]' must contain a '{}' array.".format(key)
+        "Required field 'layouts[0].{}' must be an array.".format(key)
         for key in ("nodes", "edges", "stations")
         if not isinstance(layout.get(key), list)
     ]
@@ -341,15 +341,32 @@ def replaceEdgeIdsByEdgeNames(lif):
     return len(edges)
 
 
-# Strip the leading "0.0." prefix from every node mapId.
-def removeMapIdPrefix(lif):
+# Convert the first two dot-separated parts to a whole-number string.
+def shortenMapId(map_id):
+    return "".join(map_id.split(".")[:2])
+
+
+def shortenMapIdsAndLayoutVersion(lif, map_id_value="", shorten_ids=True):
+    layout = lif["layouts"][0]
+    layout_version = layout.get("layoutVersion")
+    layout_version_changed = False
+    if shorten_ids and isinstance(layout_version, str):
+        new_layout_version = shortenMapId(layout_version)
+        layout_version_changed = new_layout_version != layout_version
+        layout["layoutVersion"] = new_layout_version
+
     changed = 0
-    for node in lif["layouts"][0]["nodes"]:
-        new_map_id = node["mapId"].removeprefix("0.0.")
+    for node in layout["nodes"]:
+        if map_id_value:
+            new_map_id = map_id_value
+        elif shorten_ids:
+            new_map_id = shortenMapId(node["mapId"])
+        else:
+            new_map_id = node["mapId"]
         if new_map_id != node["mapId"]:
             changed += 1
         node["mapId"] = new_map_id
-    return changed
+    return changed, layout_version_changed
 
 
 # Copy each node's name into its description field.
@@ -428,7 +445,7 @@ def checkEmptyVehicleTypeProperties(lif):
 
     all_mapped = not messages
     if all_mapped:
-        logger.info("All edges and nodes have vehicleType properties mapped.")
+        logger.info("Every node and edge has at least one vehicleType property.")
     return all_mapped
 
 
@@ -456,7 +473,7 @@ def count_enabled_steps(options):
         count += 1
     if options.remove_whitespace:
         count += 1
-    if options.remove_map_id_prefix:
+    if options.shorten_map_id or options.map_id_value:
         count += 1
     if options.create_stations_from_park_nodes:
         count += 1
@@ -530,10 +547,18 @@ def iter_transformations(output_data, options):
         logger.info("Removed whitespace from %d/%d %s "
                     "in nodes[].nodeName, edges[].edgeName, stations[].stationName",
                     count, total_names, plural(count, "name"))
-    if options.remove_map_id_prefix:
-        yield "Removing map id prefix"
-        count = removeMapIdPrefix(output_data)
-        logger.info("Removed map id prefix from %d/%d %s in nodes[].mapId", count, total_nodes, plural(count, "node"))
+    if options.shorten_map_id or options.map_id_value:
+        yield "Updating mapId and layoutVersion"
+        count, layout_version_changed = shortenMapIdsAndLayoutVersion(
+            output_data, options.map_id_value, options.shorten_map_id)
+        layout_version_status = "yes" if layout_version_changed else "no"
+        if options.map_id_value:
+            logger.info("Set mapId to '%s' on %d/%d %s; converted layoutVersion to whole-number format: %s",
+                        options.map_id_value, count, total_nodes, plural(count, "node"),
+                        layout_version_status)
+        else:
+            logger.info("Converted layoutVersion to whole-number format: %s; converted mapId on %d/%d %s",
+                        layout_version_status, count, total_nodes, plural(count, "node"))
     if options.create_stations_from_park_nodes:
         yield "Creating stations from park nodes"
         count = createStationsFromParkNodes(output_data, theta=options.park_theta)
